@@ -1,153 +1,90 @@
 const Binance = require("node-binance-api");
 
+// Configuração do intervalo de vela e par de moeda
+const intervalo = "15m";
+const par = "LINKUSDT";
 
-// |||||||||| CONFIGURAÇÃO DE INTERVALO DE VELA E PAR DE MOEDA |||||||||||||||||||||||
-
-var intervalo = "15m";
-var par = "LINKUSDT";
-
-//const binance = new Binance().options();
-
-// API DE PRODUÇÃO
-const  binance = new Binance().options({
-  APIKEY: 'YOUR_API_KEY',
-  APISECRET: 'YOUR_API_SECRET',
-  'recvWindow': 60000
+// Configuração da API (Produção ou Teste)
+const binance = new Binance().options({
+  APIKEY: "YOUR_API_KEY",
+  APISECRET: "YOUR_API_SECRET",
+  recvWindow: 60000,
 });
 
-// API DE TESTE
-/*
-var binance = new Binance().options({
-    APIKEY: 'YOUR_API_KEY_TEST',
-    APISECRET: 'YOUR_API_SECRET_TEST',
-    //'recvWindow': 60000,
-    verbose: true,
-    urls: {
-       base: 'https://testnet.binance.vision/api/',
-       //combineStream: 'wss://testnet.binance.vision/stream?streams=',
-       //stream: 'wss://testnet.binance.vision/ws/'
-    }
-  });
+// Função para calcular velas Heikin-Ashi
+function calcularHeikinAshi({ open, high, low, close }) {
+  const heikinAshiCloses = close.map((_, i) => (open[i] + high[i] + low[i] + close[i]) / 4);
+  const heikinAshiOpens = close.map((_, i) =>
+    i === 0 ? open[i] : (heikinAshiOpens[i - 1] + heikinAshiCloses[i - 1]) / 2
+  );
+  const heikinAshiHighs = close.map((_, i) => Math.max(high[i], heikinAshiOpens[i], heikinAshiCloses[i]));
+  const heikinAshiLows = close.map((_, i) => Math.min(low[i], heikinAshiOpens[i], heikinAshiCloses[i]));
 
-  */
-
-//-------- ^ FIM DO BLOCO DE CONFIGURAÇÕES DA CORRETORA -------------------------
-
-//------------------------- INICIO DA ESTRATEGIA---------------------------------
-
-
-
-binance.websockets.chart(par, intervalo, (symbol, interval, chart) => {
-  let tick = binance.last(chart);
-  const last = chart[tick];
-
-  let ohlc = binance.ohlc(chart);
-  let volumes = ohlc.volume;
-  
-
-
-  // CONVERTENDO OS DADOS DAS VELAS OHLC PARA HEIKIN-ASHI
-  let closes = ohlc.close;
-  let opens = ohlc.open;
-  let highs = ohlc.high;
-  let lows = ohlc.low;
-  let heikinAshiCloses = [];
-  let heikinAshiOpens = [];
-  let heikinAshiHighs = [];
-  let heikinAshiLows = [];
-  
-  for(let i = 0; i < closes.length; i++) {
-    const haClose = (opens[i] + highs[i] + lows[i] + closes[i]) / 4;
-    heikinAshiCloses.push(haClose);
-  }
-  
-  for(let i = 0; i < opens.length; i++) {
-    if(i === 0) {
-      heikinAshiOpens.push(opens[i]);
-    } else {
-      const haOpen = (heikinAshiOpens[i-1] + heikinAshiCloses[i-1]) / 2;
-      heikinAshiOpens.push(haOpen);
-    }
-  }
-  
-  for(let i = 0; i < highs.length; i++) {
-    const haHigh = Math.max(highs[i], heikinAshiOpens[i], heikinAshiCloses[i]);
-    heikinAshiHighs.push(haHigh);
-  }
-  
-  for(let i = 0; i < lows.length; i++) {
-    const haLow = Math.min(lows[i], heikinAshiOpens[i], heikinAshiCloses[i]);
-    heikinAshiLows.push(haLow);
-  }
-
-  //A PARTIR DAQUI, PEGAMOS ALGUMAS VELAS PARA CRIAR A ESTRATEGIA
-  
-  // Pegando dados da vela Atual (-1)
-  const haOpen1 = heikinAshiOpens[heikinAshiOpens.length - 1];
-  const haHigh1 = heikinAshiHighs[heikinAshiHighs.length - 1];
-  const haLow1 = heikinAshiLows[heikinAshiLows.length - 1];
-  const haClose1 = heikinAshiCloses[heikinAshiCloses.length - 1];
- 
-  // Pegando Dados da Vela anterior (-2)
-  const haOpen2 = heikinAshiOpens[heikinAshiOpens.length - 2];
-  const haHigh2 = heikinAshiHighs[heikinAshiHighs.length - 2];
-  const haLow2 = heikinAshiLows[heikinAshiLows.length - 2];
-  const haClose2 = heikinAshiCloses[heikinAshiCloses.length - 2];
-
-  
-  // Pegando Dados da Vela anterior (-3)
-  const haOpen3 = heikinAshiOpens[heikinAshiOpens.length - 3];
-  const haHigh3 = heikinAshiHighs[heikinAshiHighs.length - 3];
-  const haLow3 =  heikinAshiLows[heikinAshiLows.length - 3];
-  const haClose3 = heikinAshiCloses[heikinAshiCloses.length - 3];
-  
-  // Pegando Dados da Vela anterior (-4)
-  const haOpen4 = heikinAshiOpens[heikinAshiOpens.length - 4];
-  const haHigh4 = heikinAshiHighs[heikinAshiHighs.length - 4];
-  const haLow4 = heikinAshiLows[heikinAshiLows.length - 4];
-  const haClose4 = heikinAshiCloses[heikinAshiCloses.length - 4];
-  
-  // Pegando Dados da Vela anterior (-5)
-  const haOpen5 = heikinAshiOpens[heikinAshiOpens.length - 5];
-  const haHigh5 = heikinAshiHighs[heikinAshiHighs.length - 5];
-  const haLow5 = heikinAshiLows[heikinAshiLows.length - 5];
-  const haClose5 = heikinAshiCloses[heikinAshiCloses.length - 5];
-  
-  // Pegando Dados da Vela anterior (-6)
-  const haOpen6 = heikinAshiOpens[heikinAshiOpens.length - 6];
-  const haHigh6 = heikinAshiHighs[heikinAshiHighs.length - 6];
-  const haLow6 = heikinAshiLows[heikinAshiLows.length - 6];
-  const haClose6 = heikinAshiCloses[heikinAshiCloses.length - 6];
-  
-  // Pegando Dados da Vela anterior (-7)
-  const haOpen7 = heikinAshiOpens[heikinAshiOpens.length - 7];
-  const haHigh7 = heikinAshiHighs[heikinAshiHighs.length - 7];
-  const haLow7 = heikinAshiLows[heikinAshiLows.length - 7];
-  const haClose7 = heikinAshiCloses[heikinAshiCloses.length - 7];
-
-  // A PARTIR DAQUI, PEGAMOS DADOS DE VOLUMES FINANCEIRO PARA CONFIRMAÇÃO DE ENTRADA  
-  const volume2 = volumes[volumes.length - 2];
-  const volume3 = volumes[volumes.length - 3];
-  
-  // AQUI FICA A ESTRATEGIA DE COMPRA
-  strategy = haClose5 < haOpen5 && haClose4 <= haOpen4 && haClose3 <= haOpen3 && haClose2 > haOpen2 && volume2 > volume3;
-
-});
-
-//AQUI FICA A FUNÇÃO DE COMPRA
-function comprar(){
-    
+  return { heikinAshiOpens, heikinAshiHighs, heikinAshiLows, heikinAshiCloses };
 }
 
-//FUNÇÃO PARA VERIFICAR ESTRATEGIA
-function verificar() {
-  
-  if (strategy === true) {    
-    comprar(); 
-
-  } else{  
-    console.log("Sem sinal de entrada")
-    console.log(strategy)
+// Função para extrair dados das últimas velas
+function pegarDadosVelas(heikinAshi, n = 7) {
+  const dados = [];
+  for (let i = 1; i <= n; i++) {
+    dados.push({
+      open: heikinAshi.heikinAshiOpens[heikinAshi.heikinAshiOpens.length - i],
+      high: heikinAshi.heikinAshiHighs[heikinAshi.heikinAshiHighs.length - i],
+      low: heikinAshi.heikinAshiLows[heikinAshi.heikinAshiLows.length - i],
+      close: heikinAshi.heikinAshiCloses[heikinAshi.heikinAshiCloses.length - i],
+    });
   }
-} setInterval(verificar, 16000);
+  return dados;
+}
 
+// Função para verificar a estratégia
+function verificarEstrategia(velas, volumes) {
+  const [v5, v4, v3, v2] = velas.slice(0, 4);
+  const volume2 = volumes[volumes.length - 2];
+  const volume3 = volumes[volumes.length - 3];
+
+  return (
+    v5.close < v5.open &&
+    v4.close <= v4.open &&
+    v3.close <= v3.open &&
+    v2.close > v2.open &&
+    volume2 > volume3
+  );
+}
+
+// Inicialização da estratégia
+binance.websockets.chart(par, intervalo, (symbol, interval, chart) => {
+  const ohlc = binance.ohlc(chart);
+  const heikinAshi = calcularHeikinAshi(ohlc);
+  const velas = pegarDadosVelas(heikinAshi);
+  const volumes = ohlc.volume;
+
+  const strategy = verificarEstrategia(velas, volumes);
+  atualizarEstrategia(strategy);
+});
+
+// Variável global para sinal da estratégia
+let sinalEstrategia = false;
+
+// Atualizar estratégia
+function atualizarEstrategia(strategy) {
+  sinalEstrategia = strategy;
+}
+
+// Função para executar a compra
+function comprar() {
+  console.log("Sinal de compra detectado! Executando ordem...");
+  // Lógica de compra aqui
+}
+
+// Função para monitorar a estratégia
+function verificar() {
+  if (sinalEstrategia) {
+    comprar();
+  } else {
+    console.log("Sem sinal de entrada");
+  }
+}
+
+// Intervalo para verificação
+setInterval(verificar, 16000);
